@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PS5-OS · Installateur</title>
+<style>
+  @property --a { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+  :root {
+    --bg1: #040916; --bg2: #0a1733; --ink: #ffffff; --muted: #b8c0cc; --dim: #6e7785;
+    --glass: rgba(18, 22, 31, .78); --line: rgba(255,255,255,.14);
+    --blue: #0070d1; --blue2: #1a8cff; --gold: #f5d08a;
+    --ok: #2ce672; --warn: #ffb35c; --err: #ff4a4a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font-family: "SST", "Segoe UI", -apple-system, "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink); min-height: 100vh;
+    background: radial-gradient(1200px 700px at 70% -10%, #12306e 0%, transparent 60%),
+                linear-gradient(180deg, var(--bg2), var(--bg1));
+    background-attachment: fixed;
+  }
+  #stars { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+  /* ---------- start-up animation ---------- */
+  #intro { position: fixed; inset: 0; z-index: 50; background: #000; display: grid; place-items: center; overflow: hidden; animation: introOut .7s ease 2.7s forwards; }
+  #intro .glow { position: absolute; width: 20px; height: 20px; border-radius: 50%; background: radial-gradient(circle, #1a56d8 0%, #00439c 40%, transparent 70%); animation: glow 1.6s cubic-bezier(.22,1,.36,1) forwards; }
+  #intro .logo { position: relative; text-align: center; opacity: 0; animation: logoIn .9s ease .9s forwards; }
+  #intro .logo b { display: block; font-size: 84px; letter-spacing: 14px; padding-left: 14px; font-weight: 800; color: #fff; text-shadow: 0 0 30px rgba(80,140,255,.8); }
+  #intro .logo svg { width: 190px; margin-top: 6px; }
+  #intro .logo small { display: block; margin-top: 10px; color: var(--muted); letter-spacing: 6px; font-size: 12px; }
+  @keyframes glow { to { transform: scale(60); opacity: .85; } }
+  @keyframes logoIn { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: scale(1); } }
+  @keyframes introOut { to { opacity: 0; visibility: hidden; } }
+  /* ---------- page ---------- */
+  .page { position: relative; z-index: 1; opacity: 0; animation: pageIn .8s ease 3.1s forwards; }
+  @keyframes pageIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  .titlebar { max-width: 940px; margin: 0 auto; padding: 26px 18px 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .tabs { display: flex; align-items: center; gap: 26px; font-size: 22px; font-weight: 700; }
+  .tabs span { color: var(--muted); opacity: .6; font-weight: 500; }
+  .brand h1 { margin: 0; font-size: 30px; letter-spacing: 1px; }
+  .brand .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .status { display: flex; align-items: center; gap: 9px; font-size: 14px; background: rgba(255,255,255,.14); backdrop-filter: blur(14px); border: 1px solid var(--line); border-radius: 999px; padding: 8px 16px; }
+  .dot { width: 11px; height: 11px; border-radius: 50%; background: #6e7785; }
+  .dot.ok { background: var(--ok); box-shadow: 0 0 10px rgba(44,230,114,.7); }
+  .dot.warn { background: var(--warn); box-shadow: 0 0 10px rgba(255,179,92,.6); }
+  .dot.err { background: var(--err); box-shadow: 0 0 10px rgba(255,74,74,.6); }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 20px 18px 70px; }
+  .card { position: relative; background: var(--glass); backdrop-filter: blur(24px) saturate(130%); border: 1px solid var(--line); border-radius: 22px; padding: 22px; margin-bottom: 18px; box-shadow: 0 18px 50px rgba(0,0,0,.45); transition: transform .26s cubic-bezier(.34,1.56,.64,1), box-shadow .26s; animation: rise .6s cubic-bezier(.22,1,.36,1) both; }
+  .card:nth-of-type(1) { animation-delay: 3.3s; } .card:nth-of-type(2) { animation-delay: 3.45s; } .card:nth-of-type(3) { animation-delay: 3.6s; }
+  @keyframes rise { from { opacity: 0; transform: translateY(26px); } to { opacity: 1; transform: none; } }
+  .card:hover { transform: translateY(-3px); }
+  .card h2 { margin: 0 0 14px; font-size: 20px; font-weight: 600; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .card h2 small { color: var(--muted); font-weight: 400; font-size: 13px; }
+  ol.how { margin: 0; padding-left: 22px; color: var(--muted); font-size: 15px; line-height: 1.8; }
+  ol.how b { color: #fff; }
+  kbd { background: rgba(255,255,255,.16); border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; font: inherit; font-size: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; margin-bottom: 14px; }
+  /* the PS5 "laser" focus ring: a white light running round the tile */
+  .game, .add, button.install { --a: 0deg; }
+  .game::before, .add::before, button.install::before { content: ""; position: absolute; inset: -3px; border-radius: inherit; padding: 3px; background: conic-gradient(from var(--a), rgba(255,255,255,.9), rgba(255,255,255,.9) 6%, rgba(255,255,255,.0) 14%, rgba(255,255,255,.0) 86%, rgba(255,255,255,.9)); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; opacity: 0; transition: opacity .2s; pointer-events: none; animation: lap 2.4s linear infinite; }
+  .game:hover::before, .add:hover::before, .add.over::before, button.install:hover:not(:disabled)::before, button.install:focus-visible::before { opacity: 1; }
+  @keyframes lap { to { --a: 360deg; } }
+  .game { position: relative; border-radius: 18px; padding: 16px 12px 12px; display: flex; flex-direction: column; align-items: center; gap: 9px; text-align: center; background: rgba(255,255,255,.07); border: 1px solid var(--line); transition: transform .26s cubic-bezier(.34,1.56,.64,1); }
+  .game:hover { transform: scale(1.05); }
+  .game .ico { width: 54px; height: 54px; border-radius: 14px; display: grid; place-items: center; background: linear-gradient(160deg, #3a7bff, #0a2a8a); box-shadow: 0 8px 20px rgba(0,0,0,.4); }
+  .game .ico svg { width: 30px; }
+  .game .name { font-weight: 600; font-size: 14px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .game .file { color: var(--dim); font-size: 11px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .game .remove { position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; border-radius: 50%; border: none; background: rgba(255,255,255,.12); color: #fff; font-size: 16px; cursor: pointer; opacity: 0; transition: opacity .2s; }
+  .game:hover .remove, .game .remove:focus { opacity: 1; }
+  .game .remove:hover { background: var(--err); }
+  .add { position: relative; border-radius: 18px; border: 1px dashed rgba(255,255,255,.28); display: grid; place-items: center; min-height: 128px; background: rgba(255,255,255,.04); color: var(--muted); font-size: 13px; cursor: pointer; text-align: center; padding: 8px; font-weight: 600; transition: transform .26s cubic-bezier(.34,1.56,.64,1); }
+  .add .plus { font-size: 34px; line-height: 1; font-weight: 300; }
+  .add.over, .add:hover { color: #fff; transform: scale(1.05); }
+  .meter { height: 6px; background: rgba(255,255,255,.14); border-radius: 4px; overflow: hidden; }
+  .meter div { height: 100%; width: 0; background: #fff; transition: width .4s; }
+  .note { font-size: 12.5px; color: var(--muted); margin-top: 10px; line-height: 1.6; }
+  .actions { display: flex; flex-direction: column; gap: 14px; }
+  button.install { position: relative; align-self: flex-start; display: inline-flex; align-items: center; gap: 10px; border: none; border-radius: 999px; padding: 15px 44px; font: inherit; font-weight: 700; font-size: 18px; color: #000; background: #fff; cursor: pointer; box-shadow: 0 10px 30px rgba(0,112,209,.45); transition: transform .26s cubic-bezier(.34,1.56,.64,1); }
+  button.install:hover:not(:disabled) { transform: scale(1.06); }
+  button.install:disabled { color: rgba(255,255,255,.45); background: rgba(255,255,255,.14); cursor: default; box-shadow: none; }
+  ul.steps { list-style: none; margin: 0; padding: 0; font-size: 15px; }
+  ul.steps li { display: flex; align-items: center; gap: 12px; padding: 4px 0; color: var(--dim); }
+  ul.steps li .s { width: 15px; height: 15px; border-radius: 50%; border: 2px solid #4a5368; flex: none; }
+  ul.steps li.running { color: #fff; }
+  ul.steps li.running .s { border-color: #fff; border-right-color: transparent; animation: spin .8s linear infinite; }
+  ul.steps li.done { color: var(--muted); }
+  ul.steps li.done .s { background: var(--blue2); border-color: var(--blue2); box-shadow: 0 0 10px rgba(26,140,255,.7); }
+  ul.steps li.error { color: var(--err); }
+  ul.steps li.error .s { background: var(--err); border-color: var(--err); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .result { font-size: 15px; padding: 14px 18px; border-radius: 16px; display: none; }
+  .result.ok { display: block; background: rgba(26,140,255,.18); border: 1px solid var(--blue2); }
+  .result.error { display: block; background: rgba(255,74,74,.14); border: 1px solid var(--err); }
+  details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  pre { background: rgba(0,0,0,.35); border-radius: 12px; padding: 12px; font-size: 11px; max-height: 260px; overflow: auto; white-space: pre-wrap; color: var(--muted); }
+  @media (prefers-reduced-motion: reduce) { * { animation-duration: .01s !important; animation-delay: 0s !important; } }
+</style>
+</head>
+<body>
+<canvas id="stars"></canvas>
+
+<div id="intro" aria-hidden="true">
+  <div class="glow"></div>
+  <div class="logo">
+    <b>PS5</b>
+    <svg viewBox="0 0 190 30" aria-hidden="true"><path d="M20 4 L9 24 H31 Z" fill="none" stroke="#4fd66a" stroke-width="3" stroke-linejoin="round"/><circle cx="66" cy="15" r="10" fill="none" stroke="#ff5a5a" stroke-width="3"/><path d="M101 5 L121 25 M121 5 L101 25" stroke="#5aa9ff" stroke-width="3" stroke-linecap="round"/><rect x="146" y="5" width="20" height="20" rx="2" fill="none" stroke="#e58ad9" stroke-width="3"/></svg>
+    <small>PS5 OS</small>
+  </div>
+</div>
+
+<div class="page">
+<div class="titlebar">
+  <div class="brand">
+    <div class="tabs"><b>PS5-OS</b><span>Installateur</span></div>
+    <div class="sub">Pour NumWorks n0110 / n0115 / n0120 · slot B</div>
+  </div>
+  <div class="status"><span class="dot" id="calcDot"></span><span id="calcText">Recherche…</span></div>
+</div>
+
+<div class="wrap">
+  <section class="card">
+    <h2>Avant d'installer</h2>
+    <ol class="how">
+      <li>Branche la calculatrice en USB.</li>
+      <li>Si elle est déjà sur PS5-OS, appuie sur <b>Reset</b> au dos : elle revient sur le système officiel (slot A).</li>
+      <li>Quand le voyant en haut à droite passe au vert, clique sur <b>Installer</b>.</li>
+    </ol>
+  </section>
+
+  <section class="card">
+    <h2>Jeux cachés <small id="gamesInfo"></small></h2>
+    <div class="grid" id="games"></div>
+    <input type="file" id="picker" accept=".nwa" multiple hidden>
+    <div class="meter" title="Place utilisée dans le slot B"><div id="meter"></div></div>
+    <div class="note" id="gamesNote">Les jeux sont <b>invisibles</b> dans le menu PS5 tant que tu n'as pas tapé le code secret : <kbd>↑</kbd> <kbd>↑</kbd> <kbd>↓</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> <kbd>←</kbd> <kbd>→</kbd> sur l'écran d'accueil. Le même code les recache. Au redémarrage, ils sont de nouveau cachés.</div>
+  </section>
+
+  <section class="card actions">
+    <button class="install" id="install" disabled>Installer PS5-OS</button>
+    <ul class="steps" id="steps"></ul>
+    <div class="result" id="result"></div>
+    <details id="logBox" hidden>
+      <summary>Journal détaillé</summary>
+      <pre id="log"></pre>
+    </details>
+  </section>
+</div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const SECTOR = 0x10000;
+let state = { calculator: { connected: null }, games: [], appsCapacity: 0, firmware: true };
+let installing = false;
+
+const gameIcon = '<svg viewBox="0 0 100 100" aria-hidden="true"><rect x="8" y="30" width="84" height="44" rx="20" fill="#fff"/><path d="M28 44v16M20 52h16" stroke="#4a5db5" stroke-width="7" stroke-linecap="round"/><circle cx="64" cy="47" r="5" fill="#4a5db5"/><circle cx="75" cy="58" r="5" fill="#4a5db5"/></svg>';
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function renderCalc() {
+  const c = state.calculator;
+  const dot = $("calcDot"), text = $("calcText");
+  dot.className = "dot";
+  if (installing || c.connected === null) { text.textContent = installing ? "Installation…" : "Recherche…"; return; }
+  if (!c.connected) { dot.classList.add("err"); text.textContent = "Calculatrice non détectée"; }
+  else if (!["n0110", "n0115", "n0120"].includes(c.model)) { dot.classList.add("err"); text.textContent = `Modèle ${c.model} non supporté`; }
+  else if (c.inactiveSlot !== "B") { dot.classList.add("warn"); text.textContent = "Sur le slot B : appuie sur Reset"; }
+  else { dot.classList.add("ok"); text.textContent = `${c.model} prête`; }
+}
+
+function canInstall() {
+  const c = state.calculator;
+  return !installing && state.firmware && c.connected && ["n0110", "n0115", "n0120"].includes(c.model) && c.inactiveSlot === "B";
+}
+
+function renderGames() {
+  const grid = $("games");
+  grid.innerHTML = "";
+  let used = SECTOR;
+  for (const g of state.games) {
+    used += Math.ceil(g.size / SECTOR) * SECTOR;
+    const tile = document.createElement("div");
+    tile.className = "game";
+    tile.innerHTML = `<div class="ico">${gameIcon}</div><div class="name" title="${escapeHtml(g.name)}">${escapeHtml(g.name)}</div><div class="file">${escapeHtml(g.file)} · ${(g.size / 1024).toFixed(0)} Ko</div>`;
+    const del = document.createElement("button");
+    del.className = "remove";
+    del.title = "Retirer";
+    del.setAttribute("aria-label", `Retirer ${g.name}`);
+    del.textContent = "×";
+    del.disabled = installing;
+    del.onclick = async () => {
+      await fetch("/api/games/" + encodeURIComponent(g.file), { method: "DELETE" });
+      refresh();
+    };
+    tile.appendChild(del);
+    grid.appendChild(tile);
+  }
+  const add = document.createElement("label");
+  add.className = "add";
+  add.htmlFor = "picker";
+  add.innerHTML = '<div><div class="plus">+</div>Glisse des .nwa ici<br>ou clique</div>';
+  add.addEventListener("dragover", (e) => { e.preventDefault(); add.classList.add("over"); });
+  add.addEventListener("dragleave", () => add.classList.remove("over"));
+  add.addEventListener("drop", (e) => { e.preventDefault(); e.stopPropagation(); add.classList.remove("over"); upload(e.dataTransfer.files); });
+  grid.appendChild(add);
+  const cap = state.appsCapacity || 1;
+  $("meter").style.width = Math.min(100, (used / cap) * 100) + "%";
+  $("gamesInfo").textContent = `${state.games.length} jeu${state.games.length > 1 ? "x" : ""} · ~${Math.round(used / 1024)} Ko / ${Math.round(cap / 1024)} Ko`;
+  if (state.platform === "windows") {
+    $("gamesNote").textContent = "Les jeux sont invisibles dans le menu tant que tu n'as pas tapé le code secret ↑ ↑ ↓ ↓ ← → ← →. Sur Windows, ajouter un nouveau jeu demande la chaîne ARM (Arm GNU Toolchain).";
+  }
+}
+
+function render() {
+  renderCalc();
+  renderGames();
+  $("install").disabled = !canInstall();
+}
+
+async function refresh() {
+  if (installing) return;
+  try {
+    const r = await fetch("/api/status");
+    state = await r.json();
+  } catch { state.calculator = { connected: false }; }
+  render();
+}
+
+async function upload(files) {
+  for (const f of files) {
+    if (!f.name.toLowerCase().endsWith(".nwa")) { alert(`${f.name} n'est pas un .nwa`); continue; }
+    const r = await fetch("/api/games", { method: "POST", headers: { "X-Filename": encodeURIComponent(f.name) }, body: f });
+    if (!r.ok) { const e = await r.json().catch(() => ({})); alert(`${f.name} : ${e.error || "refusé"}`); }
+  }
+  refresh();
+}
+
+$("picker").addEventListener("change", (e) => { upload(e.target.files); e.target.value = ""; });
+document.addEventListener("dragover", (e) => e.preventDefault());
+document.addEventListener("drop", (e) => { e.preventDefault(); if (e.dataTransfer.files.length) upload(e.dataTransfer.files); });
+
+function renderJob(job) {
+  const steps = $("steps");
+  steps.innerHTML = "";
+  for (const s of job.steps) {
+    const li = document.createElement("li");
+    li.className = s.state;
+    li.innerHTML = `<span class="s"></span><span>${escapeHtml(s.label)}</span>`;
+    steps.appendChild(li);
+  }
+  $("logBox").hidden = !job.log;
+  $("log").textContent = job.log;
+  const res = $("result");
+  res.className = "result";
+  if (job.result === "ok") {
+    res.classList.add("ok");
+    res.textContent = "PS5-OS est installé et démarre sur ta calculatrice. Passe l'écran « logiciel non officiel » avec une touche : l'animation PS5 démarre, puis choisis ton profil.";
+  } else if (job.result === "error") {
+    res.classList.add("error");
+    const last = job.log.split("\n").filter((l) => l.startsWith("ERREUR")).pop() || "Erreur.";
+    res.textContent = last.replace("ERREUR: ", "");
+  }
+}
+
+$("install").onclick = async () => {
+  const r = await fetch("/api/install", { method: "POST" });
+  if (!r.ok) return;
+  installing = true;
+  render();
+  const poll = setInterval(async () => {
+    const job = await (await fetch("/api/job")).json();
+    renderJob(job);
+    if (!job.running) {
+      clearInterval(poll);
+      installing = false;
+      setTimeout(refresh, 1500);
+    }
+  }, 500);
+};
+
+refresh();
+setInterval(refresh, 3000);
+
+// Gold dust drifting up to the right, like the PS5 wallpaper
+(() => {
+  const c = document.getElementById("stars"), g = c.getContext("2d");
+  let W, H, P = [];
+  const resize = () => { W = c.width = innerWidth; H = c.height = innerHeight; };
+  addEventListener("resize", resize); resize();
+  for (let i = 0; i < 110; i++) P.push({ x: Math.random(), y: Math.random(), z: .2 + Math.random() * .8, t: Math.random() * 6.28 });
+  let t0 = performance.now();
+  (function frame(t) {
+    const dt = Math.min(50, t - t0) / 1000; t0 = t;
+    g.clearRect(0, 0, W, H);
+    for (const p of P) {
+      p.x += dt * .012 * p.z; p.y -= dt * .016 * p.z; p.t += dt * (.8 + p.z);
+      if (p.x > 1.02) p.x = -0.02; if (p.y < -0.02) p.y = 1.02;
+      const a = (.25 + .75 * (.5 + .5 * Math.sin(p.t))) * (.25 + .6 * p.z);
+      g.fillStyle = (p.z > .6 ? "rgba(245,208,138," : "rgba(160,190,255,") + a.toFixed(3) + ")";
+      g.beginPath(); g.arc(p.x * W, p.y * H, .8 + p.z * 1.8, 0, 6.283); g.fill();
+    }
+    // soft blue ribbon
+    g.lineWidth = 2; g.strokeStyle = "rgba(60,120,255,.18)"; g.beginPath();
+    for (let x = 0; x <= W; x += 8) { const y = H * .72 - x * .12 + Math.sin(x / 90 + t / 1800) * 26; x ? g.lineTo(x, y) : g.moveTo(x, y); }
+    g.stroke();
+    requestAnimationFrame(frame);
+  })(t0);
+  // skip the intro with a click
+  document.getElementById("intro").addEventListener("click", (e) => { e.currentTarget.style.display = "none"; document.querySelector(".page").style.animation = "none"; document.querySelector(".page").style.opacity = 1; document.querySelectorAll(".card").forEach((x) => { x.style.animation = "none"; }); });
+})();
+
+</script>
+</body>
+</html>
